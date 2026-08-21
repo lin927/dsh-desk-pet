@@ -47,44 +47,43 @@ DSH loads web plugins by adding a loader row to a profile's
 `cordis.patch.yml` and making the package resolvable from that profile's
 `node_modules`.
 
-### Via `dsh plugin add` (git)
+### Via `dsh plugin add` (git) — one command
+
+This package is a **dsh bundle** (`dsh.bundle` + `cordis.patch.yml`), so
+`dsh plugin add` installs it and adds it to the profile's bundle layer
+automatically — no manual `cordis.patch.yml` edit needed:
 
 ```bash
-# 1. Install the package into a profile (resolves + links it):
 dsh plugin --profile web add git+https://github.com/lin927/dsh-desk-pet.git
-
-# 2. Declare the row in ~/.dsh/profiles/web/cordis.patch.yml:
-#    - id: desk-pet
-#      name: '@deepseek-ai/dsh-desk-pet'
-
-# 3. Restart dsh web
+dsh web   # restart
 ```
 
-Git-hosted plugins build on install via their `prepare` script (tsdown), which
-pnpm blocks until allowed — add the exact key pnpm prints under `allowBuilds`
-in `~/.dsh/profiles/web/pnpm-workspace.yaml`, then re-run.
+`dsh plugin add` links the package into the profile's `node_modules` and, because
+the package declares `dsh.bundle`, adds it to `dsh.profile.bundles`. On restart
+the profile's bundle layer inserts the `desk-pet` row, the web app's
+`clientModules` discovers its `dsh.client` declaration, and the pet loads.
 
 ### Manual copy (no git)
 
-1. Build the package on a machine with the DSH harness (`pnpm --filter @deepseek-ai/dsh-desk-pet bundle`) so `lib/client.js` exists — the committed `lib/` is already built.
-2. Copy this directory to the target machine.
-3. Make it resolvable from the profile's `node_modules`, e.g.:
+1. Copy this directory (the committed `lib/client.js` is prebuilt; no build needed).
+2. Add it as a bundle to the profile (equivalent of what `dsh plugin add` does):
    ```bash
    mkdir -p ~/.dsh/profiles/web/node_modules/@deepseek-ai
    ln -s /path/to/dsh-desk-pet ~/.dsh/profiles/web/node_modules/@deepseek-ai/dsh-desk-pet
    ```
-4. Add the row to `~/.dsh/profiles/web/cordis.patch.yml`:
-   ```yaml
-   - id: desk-pet
-     name: '@deepseek-ai/dsh-desk-pet'
-   ```
-5. Restart `dsh web`.
+   and add `"@deepseek-ai/dsh-desk-pet": "link:/path/to/dsh-desk-pet"` to
+   `~/.dsh/profiles/web/package.json` `dependencies` and
+   `"@deepseek-ai/dsh-desk-pet"` to its `dsh.profile.bundles`.
+3. Restart `dsh web`.
 
-> Because this is a web **client** plugin, the built `lib/client.js` must be
-> present and the package must be resolvable from the profile the web app boots
-> with; the web app serves it at `/plugins/<id>/client.js`. A bare directory
-> copy alone is not enough — the package must be linked into the profile's
-> `node_modules` (step 3).
+> Two important facts about web **client** plugins:
+> - The built `lib/client.js` must be present and the package must be declared
+>   by a loaded manifest (profile/bundle `package.json` dependencies); a bare
+>   `node_modules` symlink plus a `cordis.patch.yml` row is **not** enough —
+>   "a row whose package no manifest declares fails to import."
+> - The web app serves the client bundle at `/plugins/<id>/client.js`; the
+>   browser-side loader provides the `@deepseek-ai/*` externals at runtime, so
+>   the package itself declares no `@deepseek-ai` dependencies.
 
 ## Rebuilding
 
