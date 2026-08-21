@@ -7,10 +7,14 @@ to the agent's working state — running while a turn is active, jumping with a
 「老大，搞定~」bubble and a Web Audio chime when a task completes, and doing
 ambient waving/jumping while idle. It is draggable and remembers its position.
 
-This is a **static DSH web client plugin** (`dsh.client` package). It is
-client-only: the pet reads the active session's running state from the browser
-session snapshot, and its assets are embedded as data URLs, so it needs **no
-host half, no RPC, and no network**.
+This is a **static DSH web client plugin** (`dsh.client` package), installable as
+a **dsh bundle** via `dsh plugin add`. It is client-only: the pet reads the
+active session's running state from the browser session snapshot, and its assets
+are embedded as data URLs, so it needs **no host half, no RPC, and no network**.
+
+> **For the full story** — how this evolved from a dynamic plugin into an
+> installable static bundle, the architecture decisions, the pitfalls, and a
+> reusable checklist — see **[NOTES.md](NOTES.md)**.
 
 ## How it works
 
@@ -26,7 +30,10 @@ host half, no RPC, and no network**.
 ## Layout
 
 ```
-package.json          # @deepseek-ai/dsh-desk-pet, dsh.client manifest
+package.json          # @deepseek-ai/dsh-desk-pet
+                      #   dsh.bundle  → installable via `dsh plugin add`
+                      #   dsh.client  → web client manifest
+cordis.patch.yml      # bundle patch: inserts the desk-pet row
 tsconfig.json
 tsdown.config.ts
 src/
@@ -39,6 +46,7 @@ src/
 assets/*.webp         # source animations (generated)
 scripts/generate-assets.py
 lib/                  # built artifacts (lib/client.js etc.)
+NOTES.md              # implementation notes, pitfalls, checklist
 ```
 
 ## Install & enable
@@ -84,6 +92,17 @@ the profile's bundle layer inserts the `desk-pet` row, the web app's
 > - The web app serves the client bundle at `/plugins/<id>/client.js`; the
 >   browser-side loader provides the `@deepseek-ai/*` externals at runtime, so
 >   the package itself declares no `@deepseek-ai` dependencies.
+
+## Verify after restart
+
+```bash
+# 1) The boot manifest lists the plugin:
+curl -s http://127.0.0.1:3080/ | grep -o "dsh-desk-pet" | head -1
+# 2) The client bundle is served (expect 200):
+curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:3080/plugins/@deepseek-ai/dsh-desk-pet/client.js
+# 3) Visually: the transparent Kaito Kid should appear bottom-right.
+```
+
 
 ## Rebuilding
 
